@@ -1,6 +1,9 @@
 {
   "name": "messenger-gemini-bot",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.21.0"
   }
