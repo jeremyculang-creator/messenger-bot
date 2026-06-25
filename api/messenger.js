@@ -1,15 +1,17 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Groq = require("groq-sdk");
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const groq = new Groq({ apiKey: GROQ_API_KEY });
 
-async function getGeminiReply(userMessage) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
-  const result = await model.generateContent(userMessage);
-  return result.response.text();
+async function getAIReply(userMessage) {
+  const completion = await groq.chat.completions.create({
+    messages: [{ role: "user", content: userMessage }],
+    model: "llama-3.3-70b-versatile",
+  });
+  return completion.choices[0].message.content;
 }
 
 async function sendMessage(recipientId, messageText) {
@@ -35,20 +37,19 @@ module.exports = async (req, res) => {
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
 
-    // Debug endpoint
     if (req.query.debug === "1") {
-      let geminiStatus = "untested";
+      let aiStatus = "untested";
       try {
-        const reply = await getGeminiReply("Say hi in one word");
-        geminiStatus = "OK: " + reply.substring(0, 50);
+        const reply = await getAIReply("Say hi in one word");
+        aiStatus = "OK: " + reply.substring(0, 50);
       } catch (err) {
-        geminiStatus = "FAIL: " + err.message;
+        aiStatus = "FAIL: " + err.message;
       }
       return res.json({
         hasPageToken: !!PAGE_ACCESS_TOKEN,
         hasVerifyToken: !!VERIFY_TOKEN,
-        hasGeminiKey: !!GEMINI_API_KEY,
-        geminiStatus,
+        hasGroqKey: !!GROQ_API_KEY,
+        aiStatus,
       });
     }
 
@@ -72,10 +73,10 @@ module.exports = async (req, res) => {
           if (webhookEvent.message && webhookEvent.message.text) {
             const userMessage = webhookEvent.message.text;
             try {
-              const reply = await getGeminiReply(userMessage);
+              const reply = await getAIReply(userMessage);
               await sendMessage(senderId, reply);
             } catch (err) {
-              console.error("Gemini/Send error:", err.message);
+              console.error("AI/Send error:", err.message);
               await sendMessage(senderId, "Ay sorry, may error ako ngayon. Try ulit later! 😅");
             }
           }
