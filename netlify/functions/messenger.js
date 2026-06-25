@@ -30,8 +30,31 @@ async function sendMessage(recipientId, messageText) {
 }
 
 exports.handler = async (event) => {
+  const params = event.queryStringParameters || {};
+
+  // Debug endpoint: /.netlify/functions/messenger?debug=1
+  if (event.httpMethod === "GET" && params.debug === "1") {
+    let geminiStatus = "untested";
+    try {
+      const reply = await getGeminiReply("Say hi in one word");
+      geminiStatus = "OK: " + reply.substring(0, 50);
+    } catch (err) {
+      geminiStatus = "FAIL: " + err.message;
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        hasPageToken: !!PAGE_ACCESS_TOKEN,
+        pageTokenPrefix: PAGE_ACCESS_TOKEN ? PAGE_ACCESS_TOKEN.substring(0, 10) + "..." : "MISSING",
+        hasVerifyToken: !!VERIFY_TOKEN,
+        hasGeminiKey: !!GEMINI_API_KEY,
+        geminiStatus,
+      }, null, 2),
+    };
+  }
+
   if (event.httpMethod === "GET") {
-    const params = event.queryStringParameters || {};
     const mode = params["hub.mode"];
     const token = params["hub.verify_token"];
     const challenge = params["hub.challenge"];
